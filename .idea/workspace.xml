@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="05e9b594-7733-421e-b45b-39778a801795" name="Default Changelist" comment="" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="GOROOT" path="/usr/local/Cellar/go/1.15/libexec" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GoLibraries">
+    <option name="indexEntireGoPath" value="false" />
+    <option name="urls">
+      <list>
+        <option value="file://$PROJECT_DIR$" />
+      </list>
+    </option>
+  </component>
+  <component name="ProjectId" id="1hVJUACULs4vyOR3CYfLgSbIfLo" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="configurable.Global.GOPATH.is.expanded" value="true" />
+    <property name="configurable.Module.GOPATH.is.expanded" value="false" />
+    <property name="configurable.Project.GOPATH.is.expanded" value="true" />
+    <property name="go.import.settings.migrated" value="true" />
+    <property name="go.sdk.automatically.set" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="settings.editor.selected.configurable" value="com.goide.configuration.GoLibrariesConfigurableProvider" />
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="696" y="225" key="#GOPATH" timestamp="1600090360933">
+      <screen x="0" y="0" width="1792" height="1120" />
+    </state>
+    <state x="696" y="225" key="#GOPATH/-1112.83.1112.834/0.0.1792.1120@0.0.1792.1120" timestamp="1600090360933" />
+    <state x="360" y="222" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1600090435740">
+      <screen x="0" y="0" width="1792" height="1120" />
+    </state>
+    <state x="360" y="222" key="#com.intellij.execution.impl.EditConfigurationsDialog/-1112.106.1112.811/0.0.1792.1120@0.0.1792.1120" timestamp="1600090435740" />
+    <state x="626" y="369" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1600091033573">
+      <screen x="0" y="0" width="1792" height="1120" />
+    </state>
+    <state x="626" y="369" key="#com.intellij.fileTypes.FileTypeChooser/-1112.83.1112.834/0.0.1792.1120@0.0.1792.1120" timestamp="1600091033573" />
+    <state x="397" y="199" key="SettingsEditor" timestamp="1600090545144">
+      <screen x="0" y="0" width="1792" height="1120" />
+    </state>
+    <state x="397" y="199" key="SettingsEditor/-1112.106.1112.811/0.0.1792.1120@0.0.1792.1120" timestamp="1600090453764" />
+    <state x="397" y="199" key="SettingsEditor/-1112.83.1112.834/0.0.1792.1120@0.0.1792.1120" timestamp="1600090545144" />
+  </component>
+</project>
