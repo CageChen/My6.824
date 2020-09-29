@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="05e9b594-7733-421e-b45b-39778a801795" name="Default Changelist" comment="" />
+    <list default="true" id="05e9b594-7733-421e-b45b-39778a801795" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/mrsequential.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/mrsequential.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mr/master.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/mr/master.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mr/rpc.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/mr/rpc.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/mr/worker.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/mr/worker.go" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -33,7 +39,7 @@
     <property name="go.import.settings.migrated" value="true" />
     <property name="go.sdk.automatically.set" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
-    <property name="settings.editor.selected.configurable" value="com.goide.configuration.GoLibrariesConfigurableProvider" />
+    <property name="settings.editor.selected.configurable" value="editor.preferences.fonts.default" />
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TypeScriptGeneratedFilesManager">
@@ -48,14 +54,20 @@
       <screen x="0" y="0" width="1792" height="1120" />
     </state>
     <state x="360" y="222" key="#com.intellij.execution.impl.EditConfigurationsDialog/-1112.106.1112.811/0.0.1792.1120@0.0.1792.1120" timestamp="1600090435740" />
-    <state x="626" y="369" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1600091033573">
-      <screen x="0" y="0" width="1792" height="1120" />
+    <state x="2686" y="474" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1601393346634">
+      <screen x="1792" y="0" width="2560" height="1440" />
     </state>
     <state x="626" y="369" key="#com.intellij.fileTypes.FileTypeChooser/-1112.83.1112.834/0.0.1792.1120@0.0.1792.1120" timestamp="1600091033573" />
-    <state x="397" y="199" key="SettingsEditor" timestamp="1600090545144">
+    <state x="2686" y="474" key="#com.intellij.fileTypes.FileTypeChooser/1792.0.2560.1440/0.0.1792.1120@1792.0.2560.1440" timestamp="1601393346634" />
+    <state x="397" y="199" key="SettingsEditor" timestamp="1601349134421">
       <screen x="0" y="0" width="1792" height="1120" />
     </state>
     <state x="397" y="199" key="SettingsEditor/-1112.106.1112.811/0.0.1792.1120@0.0.1792.1120" timestamp="1600090453764" />
     <state x="397" y="199" key="SettingsEditor/-1112.83.1112.834/0.0.1792.1120@0.0.1792.1120" timestamp="1600090545144" />
+    <state x="397" y="199" key="SettingsEditor/1792.0.2560.1440/0.0.1792.1120@0.0.1792.1120" timestamp="1601349134421" />
+    <state x="2737" y="331" width="670" height="676" key="search.everywhere.popup" timestamp="1601390760829">
+      <screen x="1792" y="0" width="2560" height="1440" />
+    </state>
+    <state x="2737" y="331" width="670" height="676" key="search.everywhere.popup/1792.0.2560.1440/0.0.1792.1120@1792.0.2560.1440" timestamp="1601390760829" />
   </component>
 </project>

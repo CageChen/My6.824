@@ -24,6 +24,35 @@ type ExampleReply struct {
 
 // Add your RPC definitions here.
 
+// Worker's register RPC
+type RegisterArgs struct {
+}
+
+type RegisterReply struct {
+	Id int
+	NMaps int
+
+}
+
+// Worker's request of task
+type TaskArgs struct {
+	WorkId int
+}
+
+type TaskReply struct {
+	task Task
+}
+
+type ReportArgs struct{
+	TaskId int
+	Type int
+	WorkId int
+	Result bool
+}
+
+type ReportReply struct{
+
+}
 
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the master.

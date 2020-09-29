@@ -1,10 +1,15 @@
 package mr
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"sort"
+)
 import "log"
 import "net/rpc"
 import "hash/fnv"
-
 
 //
 // Map functions return a slice of KeyValue.
@@ -24,6 +29,172 @@ func ihash(key string) int {
 	return int(h.Sum32() & 0x7fffffff)
 }
 
+// Worker definitions
+type OneWorker struct {
+	id      int
+	nMaps   int
+	mapf    func(string, string) []KeyValue
+	reducef func(string, []string) string
+}
+
+// register Worker to Master
+func (worker *OneWorker) register() {
+	args := RegisterArgs{}
+	reply := RegisterReply{}
+	// use RPC to register
+	if ok := call("Master.AcceptRegister", &args, &reply); !ok {
+		log.Fatal("Worker failed to register itself to master.")
+	}
+	worker.id = reply.Id
+}
+
+// request a task from master
+func (worker *OneWorker) requestTask(WorkId int) Task{
+	args := TaskArgs{WorkId: WorkId}
+	reply := TaskReply{}
+	if ok := call("Master.SendTask",&args,&reply); !ok{
+		log.Fatal("Worker failed to request a task.")
+	}
+	return reply.task
+}
+
+func (worker *OneWorker) reportTask(TaskId int,Type int,WorkerId int,Result bool){
+	args := ReportArgs{TaskId: TaskId,Type: Type,WorkId: WorkerId,Result: Result}
+	reply := ReportReply{}
+	if ok := call("Master.ReceiveReport",&args,&reply); !ok{
+		log.Fatal("Worker failed to report.")
+	}
+
+}
+
+
+
+
+
+
+// do Map task
+func (worker *OneWorker) doMap(t Task) {
+	intermediate := []KeyValue{}
+	fileName := t.File
+	nReduce := t.NReduce
+	taskId := t.TaskId
+	file, err := os.Open(fileName)
+	defer file.Close()
+	if err != nil {
+		worker.reportTask(taskId,t.Type,worker.id,false)
+		log.Fatalf("Worker can't open the file: %s.", fileName)
+	}
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		worker.reportTask(taskId,t.Type,worker.id,false)
+		log.Fatalf("Worker can't read the file: %s.", fileName)
+	}
+	kva := worker.mapf(fileName, string(content))
+	intermediate = append(intermediate, kva...)
+	hashedKv := make([][]KeyValue,nReduce)
+	for _,kv := range intermediate{
+		key := kv.Key
+		index := ihash(key)%nReduce
+		hashedKv[index] = append(hashedKv[index],kv)
+	}
+	// write intermediate to file
+	for i,kvs := range hashedKv{
+		outFileName := fmt.Sprintf("mr-%d-%d",taskId,i)
+		outFile,err := os.Create(outFileName)
+		if err!=nil{
+			worker.reportTask(taskId,t.Type,worker.id,false)
+			log.Fatal("Worker failed to create file: %s",outFileName)
+		}
+		enc := json.NewEncoder(outFile)
+		for _,kv := range kvs{
+			if err:= enc.Encode(&kv);err!=nil{
+				worker.reportTask(taskId,t.Type,worker.id,false)
+				log.Fatal("Worker failed to encode kv.")
+				// 应向master报告task失败
+			}
+		}
+		if err := outFile.Close();err != nil{
+			worker.reportTask(taskId,t.Type,worker.id,false)
+			log.Fatal("Worker failed to close the new file: %s.",outFileName)
+		}
+	}
+	// task finished
+	worker.reportTask(taskId,t.Type,worker.id,true)
+
+}
+
+func (worker *OneWorker) getInterFileName(mapTaskId,reduceTaskId int) string{
+	return fmt.Sprintf("mr-%d-%d",mapTaskId,reduceTaskId)
+}
+
+type ByKey []KeyValue
+
+// for sorting by key.
+func (a ByKey) Len() int           { return len(a) }
+func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
+
+// do Reduce task
+func (worker *OneWorker) doReduce(t Task){
+	intermediate := []KeyValue{}
+	// 读取中间KV值
+	for i:=0;i<worker.nMaps;i++{
+		interFileName := worker.getInterFileName(i,t.TaskId)
+		interFile,err := os.Open(interFileName)
+		if err !=nil{
+			worker.reportTask(t.TaskId,t.Type,worker.id,false)
+			log.Fatal("Worker failed to open the intermediate file: %s.",interFileName)
+		}
+		dec := json.NewDecoder(interFile)
+		for {
+			var kv KeyValue
+			if err := dec.Decode(&kv); err != nil {
+				break
+			}
+			intermediate = append(intermediate, kv)
+		}
+	}
+	sort.Sort(ByKey(intermediate))
+	outFileName := fmt.Sprintf("mr-out-%d",t.TaskId)
+	ofile,err := os.Create(outFileName)
+	if err!=nil{
+		worker.reportTask(t.TaskId,t.Type,worker.id,false)
+		log.Fatal("Worker failed to create the final file: %s.",outFileName)
+	}
+	i := 0
+	for i < len(intermediate) {
+		j := i + 1
+		for j < len(intermediate) && intermediate[j].Key == intermediate[i].Key {
+			j++
+		}
+		values := []string{}
+		for k := i; k < j; k++ {
+			values = append(values, intermediate[k].Value)
+		}
+		output := worker.reducef(intermediate[i].Key, values)
+
+		// this is the correct format for each line of Reduce output.
+		fmt.Fprintf(ofile, "%v %vaa\n", intermediate[i].Key, output)
+
+		i = j
+	}
+	ofile.Close()
+	worker.reportTask(t.TaskId,t.Type,worker.id,true)
+
+
+}
+
+// Worker不停地申请并运行task，当master完成后，所有worker被强制退出
+func (worker *OneWorker) doTask(){
+	for{
+		task := worker.requestTask(worker.id)
+		if task.Type == Map{
+			worker.doMap(task)
+		}else{
+			worker.doReduce(task)
+		}
+	}
+}
 
 //
 // main/mrworker.go calls this function.
@@ -32,6 +203,12 @@ func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
 
 	// Your worker implementation here.
+
+	worker := OneWorker{mapf: mapf,reducef:reducef}
+	// initial the worker id and worker nMaps
+	worker.register()
+	// worker申请task并执行
+	worker.doTask()
 
 	// uncomment to send the Example RPC to the master.
 	// CallExample()

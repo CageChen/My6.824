@@ -78,7 +78,7 @@ func main() {
 		output := reducef(intermediate[i].Key, values)
 
 		// this is the correct format for each line of Reduce output.
-		fmt.Fprintf(ofile, "%v %v\n", intermediate[i].Key, output)
+		fmt.Fprintf(ofile, "%v %vaa\n", intermediate[i].Key, output)
 
 		i = j
 	}
