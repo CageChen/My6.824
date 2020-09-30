@@ -6,7 +6,10 @@ package mr
 // remember to capitalize all names.
 //
 
-import "os"
+import (
+	"log"
+	"os"
+)
 import "strconv"
 
 //
@@ -62,4 +65,11 @@ func masterSock() string {
 	s := "/var/tmp/824-mr-"
 	s += strconv.Itoa(os.Getuid())
 	return s
+}
+
+// Output log when debug
+func Dprintf(isDebug bool,format string,v ...interface{}){
+	if isDebug {
+		log.Printf(format,v)
+	}
 }

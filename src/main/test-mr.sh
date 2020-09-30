@@ -1,10 +1,10 @@
 #!/bin/sh
-#set -x
+
 #
 # basic map-reduce test
 #
 
-RACE=-race
+RACE=
 
 # uncomment this to run the tests with the Go race detector.
 #RACE=-race

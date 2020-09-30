@@ -19,6 +19,24 @@ type KeyValue struct {
 	Value string
 }
 
+type ByKey []KeyValue
+
+// for sorting by key.
+func (a ByKey) Len() int           { return len(a) }
+func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
+
+func Exists(path string) bool {
+	_, err := os.Stat(path)    //os.Stat获取文件信息
+	if err != nil {
+		if os.IsExist(err) {
+			return true
+		}
+		return false
+	}
+	return true
+}
+
 //
 // use ihash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
@@ -29,7 +47,7 @@ func ihash(key string) int {
 	return int(h.Sum32() & 0x7fffffff)
 }
 
-// Worker definitions
+// Worker
 type OneWorker struct {
 	id      int
 	nMaps   int
@@ -49,27 +67,30 @@ func (worker *OneWorker) register() {
 	worker.nMaps = reply.NMaps
 }
 
-// request a task from master
+// request a Task from Master
 func (worker *OneWorker) requestTask(WorkId int) Task{
 	args := TaskArgs{WorkId: WorkId}
 	reply := TaskReply{}
 	if ok := call("Master.SendTask",&args,&reply); !ok{
 		log.Fatal("Worker failed to request a task.")
 	}
-	log.Printf("---work:%d request task: %d",worker.id,reply.Task.TaskId)
-
+	Dprintf(isDebug," Worker:%d request task:%d from Master",worker.id,reply.Task.TaskId)
 	return reply.Task
 }
 
+// report Task result to Master
 func (worker *OneWorker) reportTask(TaskId int,Type int,WorkerId int,Result bool){
 	args := ReportArgs{TaskId: TaskId,Type: Type,WorkId: WorkerId,Result: Result}
 	reply := ReportReply{}
 	if ok := call("Master.ReceiveReport",&args,&reply); !ok{
 		log.Fatal("Worker failed to report.")
 	}
-
 }
 
+// get intermediate file name "mr-x-x"
+func (worker *OneWorker) getInterFileName(mapTaskId,reduceTaskId int) string{
+	return fmt.Sprintf("mr-%d-%d",mapTaskId,reduceTaskId)
+}
 
 // do Map task
 func (worker *OneWorker) doMap(t Task) {
@@ -122,39 +143,15 @@ func (worker *OneWorker) doMap(t Task) {
 			log.Fatal("Worker failed to close the new file: %s.",outFileName)
 		}
 	}
-	// task finished
+	// Task finished
+	Dprintf(isDebug," Worker:%d finished Map Task:%d",worker.id,t.TaskId)
 	worker.reportTask(taskId,t.Type,worker.id,true)
-
 }
-
-func (worker *OneWorker) getInterFileName(mapTaskId,reduceTaskId int) string{
-	return fmt.Sprintf("mr-%d-%d",mapTaskId,reduceTaskId)
-}
-
-func Exists(path string) bool {
-	_, err := os.Stat(path)    //os.Stat获取文件信息
-	if err != nil {
-		if os.IsExist(err) {
-			return true
-		}
-		return false
-	}
-	return true
-}
-
-
-type ByKey []KeyValue
-
-// for sorting by key.
-func (a ByKey) Len() int           { return len(a) }
-func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
 
 // do Reduce task
 func (worker *OneWorker) doReduce(t Task){
-	//maps := make(map[string][]string)
 	intermediate := []KeyValue{}
-	// 读取中间KV值
+	// get KV from intermediate files
 	for i:=0;i<worker.nMaps;i++{
 		interFileName := worker.getInterFileName(i,t.TaskId)
 		//log.Printf(interFileName)
@@ -170,30 +167,14 @@ func (worker *OneWorker) doReduce(t Task){
 				break
 			}
 			intermediate = append(intermediate, kv)
-			//if _,ok:=maps[kv.Key];!ok{
-			//	maps[kv.Key] = append(maps[kv.Key],kv.Value)
-			//}
 		}
 	}
-
-	//res := make([]string, 0, 100)
-	//for k, v := range maps {
-	//	res = append(res, fmt.Sprintf("%v %v\n", k, worker.reducef(k, v)))
-	//}
-	//
-	//if err := ioutil.WriteFile(fmt.Sprintf("mr-out-%d",t.TaskId), []byte(strings.Join(res, "")), 0600); err != nil {
-	//	worker.reportTask(t.TaskId,t.Type,worker.id,false)
-	//}
-	//
-	//worker.reportTask(t.TaskId,t.Type,worker.id,true)
-
 	sort.Sort(ByKey(intermediate))
 	outFileName := fmt.Sprintf("mr-out-%d",t.TaskId)
 	if Exists(outFileName){
 		os.Remove(outFileName)
 	}
 	ofile,err := os.Create(outFileName)
-
 	if err!=nil{
 		worker.reportTask(t.TaskId,t.Type,worker.id,false)
 		log.Fatal("Worker failed to create the final file: %s.",outFileName)
@@ -210,32 +191,28 @@ func (worker *OneWorker) doReduce(t Task){
 		}
 		output := worker.reducef(intermediate[i].Key, values)
 
-		// this is the correct format for each line of Reduce output.
 		if _,err := fmt.Fprintf(ofile, "%v %vaa\n", intermediate[i].Key, output);err!=nil{
 			worker.reportTask(t.TaskId,t.Type,worker.id,false)
 		}
-
 		i = j
 	}
 	if err:=ofile.Close();err!=nil{
 		worker.reportTask(t.TaskId,t.Type,worker.id,false)
 	}
 	worker.reportTask(t.TaskId,t.Type,worker.id,true)
-	log.Printf("worker:%d successfully hhhhh finish reduce task:%d",worker.id,t.TaskId)
+	Dprintf(isDebug," Worker:%d finished Reduce Task:%d",worker.id,t.TaskId)
 
 
 }
 
-// Worker不停地申请并运行task，当master完成后，所有worker被强制退出
+// Worker always request a Task and do it.
+// Worker exits when Master is exit.
 func (worker *OneWorker) doTask(){
 	for{
 		task := worker.requestTask(worker.id)
 		if task.Type == Map{
-			log.Printf("%d",worker.nMaps)
 			worker.doMap(task)
-			log.Printf("worker:%d hahahah finish one map task:%d",worker.id,task.TaskId)
 		}else{
-			log.Printf("worker:%d is doing reduce task.",worker.id)
 			worker.doReduce(task)
 		}
 	}
@@ -250,9 +227,8 @@ func Worker(mapf func(string, string) []KeyValue,
 	// Your worker implementation here.
 
 	worker := OneWorker{mapf: mapf,reducef:reducef}
-	// initial the worker id and worker nMaps
+	// initial the Worker id and Worker nMaps
 	worker.register()
-	// worker申请task并执行
 	worker.doTask()
 
 	// uncomment to send the Example RPC to the master.
