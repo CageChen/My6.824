@@ -34,7 +34,7 @@ const (
 // the value of some time
 const (
 	TaskMaxRunTime = time.Second * 10
-	ScheduleWaitTime = time.Millisecond * 100
+	ScheduleWaitTime = time.Millisecond * 500
 )
 
 //
@@ -107,40 +107,58 @@ type Master struct {
 // 对master进行初始化
 func (m *Master) initial(files []string, nReduce int){
 	m.mutex = sync.Mutex{}
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	//m.phase = Map
 	m.files = files
 	m.nReduce = nReduce
 	// taskHeadList在之后进行初始化
 	taskQueueSize := math.Max(float64(len(files)),float64(nReduce))
+	// 被阻塞？？？
 	m.taskQueue = make(chan Task,int(taskQueueSize))
 	m.done = false
 }
 
 // initMapTasks 仅初始化TaskHead
+// TaskHead 长度为nMaps
 func (m *Master) initMapTasks(){
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	// 将master的阶段状态设为Map
 	m.phase = Map
-	m.taskHeadList = make([]TaskHead,len(m.files))
-	for index,_ := range m.files{
-		m.taskHeadList = append(m.taskHeadList, TaskHead{TaskId: index,Status: TaskReady})
+	// 当前TaskHeadList为空
+	for index,file := range m.files{
+		log.Printf("create task head for %s",file)
+		m.taskHeadList = append(m.taskHeadList, TaskHead{TaskId: index,Status: TaskQueue})
+		m.taskQueue <- m.initTask(m.phase,index)
+		log.Printf("current the length of task head: %d",len(m.taskHeadList))
 		// Map Task在之后的调度环节创建
 	}
+	log.Printf("the length of task head: %d",len(m.taskHeadList))
 }
 
 // initReduceTasks
 func (m *Master) initReduceTasks(){
+	//m.mutex.Lock()
+	//defer m.mutex.Unlock()
 	m.phase = Reduce
+	// 设为空
 	m.taskHeadList = make([]TaskHead,m.nReduce)
 	for i:=0;i<m.nReduce;i++ {
-		m.taskHeadList = append(m.taskHeadList,TaskHead{TaskId: i,Status: TaskReady})
-		// Reduce Task在之后创建
+		m.taskHeadList[i].TaskId = i
+		m.taskHeadList[i].Status = TaskQueue
+		m.taskQueue <- m.initTask(Reduce,i)
 	}
+	//for i:=0;i<m.nReduce;i++ {
+	//	m.taskHeadList = append(m.taskHeadList,TaskHead{TaskId: i,Status: TaskReady})
+		// Reduce Task在之后创建
+	//}
 }
 
 // inital one map or reduce task
 func (m *Master) initTask(Type int, TaskId int) Task{
 	if Type == Map{
-		//m.files越界
+		//log.Print("finish initial one map task")
 		return Task{Type: Map, TaskId: TaskId, File: m.files[TaskId],NReduce: m.nReduce}
 	}else{
 		return Task{Type: Reduce,TaskId: TaskId,File: "",NReduce: m.nReduce}
@@ -149,13 +167,31 @@ func (m *Master) initTask(Type int, TaskId int) Task{
 
 // handle worker's request of task
 func (m *Master) scheduleTask() {
+	//m.mutex.Lock()
+	//defer m.mutex.Unlock()
 	for !m.done{
 		var isAllDone bool = true
+		//for taskid, taskHead := range m.taskHeadList{
+		//	log.Printf("task id: %d, taskStatus: %d",taskid,taskHead.Status)
+		//}
+		//taskHeadList中不一定是占满的
 		for taskId, taskHead := range m.taskHeadList{
+			//log.Printf("schedule task:%d",taskId)
 			switch taskHead.Status{
 			case TaskReady:
+				//log.Print("ready one task")
 				isAllDone = false
+				//log.Print("put one task to queue")
+				// 出现问题,锁mutex已经被占用
 				m.taskQueue <- m.initTask(m.phase,taskId)
+				// 状态没有更新成功
+				m.mutex.Lock()
+				m.taskHeadList[taskId].Status = TaskQueue
+				//taskHead.Status = TaskQueue
+				m.mutex.Unlock()
+
+				//log.Print(TaskQueue)
+				//log.Print("already put task to queue")
 			case TaskQueue:
 				isAllDone = false
 			case TaskProcess:
@@ -164,28 +200,43 @@ func (m *Master) scheduleTask() {
 				// 该task已超时，重新进行分配
 				if runTime > TaskMaxRunTime{
 					m.taskQueue <- m.initTask(m.phase,taskId)
-					taskHead.Status = TaskQueue
+
+					m.mutex.Lock()
+					m.taskHeadList[taskId].Status = TaskQueue
+					m.mutex.Unlock()
 				}
 			case TaskFailed:
+				log.Printf("task:%d failed",taskId)
 				isAllDone = false
 				m.taskQueue <- m.initTask(m.phase,taskId)
-				taskHead.Status = TaskQueue
-			case TaskFinished:
+				m.mutex.Lock()
+				m.taskHeadList[taskId].Status = TaskQueue
+				m.mutex.Unlock()
+			//case TaskFinished:
 				// do nothing
 			}
+			//log.Print("finished one schedule task")
 		}
 		// all tasks of map are finished
 		if isAllDone && m.phase == Map{
+			log.Print("-------------finished map phase")
 			// 对Reduce的taskHead进行初始化
+			log.Print("before init reduce task")
 			m.initReduceTasks()
+			log.Print("after init reduce task")
+			// 将isAllDone设为false，否则将直接进入下个if导致master结束
+			isAllDone = false
 		}
 		if isAllDone && m.phase == Reduce{
 			// 标记mr任务已完成，等待mrmaster结束任务
+			log.Print("-------------finished reduce phase")
+			m.mutex.Lock()
 			m.done = true
+			m.mutex.Unlock()
 		}
 	}
 	//完成一次调度后，睡眠一段时间
-	// sleep
+	time.Sleep(ScheduleWaitTime)
 }
 
 
@@ -205,36 +256,41 @@ func (m *Master) AcceptRegister(args *RegisterArgs, reply *RegisterReply) error 
 }
 
 func (m *Master) SendTask(args *TaskArgs,reply *TaskReply) error{
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	//m.mutex.Lock()
+	//defer m.mutex.Unlock()
 	// 若taskQueue为空，则会在此阻塞
 	task := <- m.taskQueue
 	// task已被分配，更新其状态和运行时间
 	taskHead := m.taskHeadList[task.TaskId]
-	taskHead.Status = TaskProcess
-	taskHead.StartTime = time.Now()
-	taskHead.workerId = args.WorkId
+	m.mutex.Lock()
+	m.taskHeadList[task.TaskId].Status = TaskProcess
+	m.taskHeadList[task.TaskId].StartTime = time.Now()
+	m.taskHeadList[task.TaskId].workerId = args.WorkId
+	m.mutex.Unlock()
+
+	log.Printf("-------------已分配task:%d,workId:%d",taskHead.TaskId,taskHead.workerId)
 	// 可以在这里对WorkId和WorkerCount进行比较，避免有其他Worker加入
-	reply.task = task
+	reply.Task = task
 	return nil
 }
 
 func (m *Master) ReceiveReport(args *ReportArgs,reply *ReportReply) error{
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
 	TaskId := args.TaskId
 	taskHead := m.taskHeadList[TaskId]
 
 	if args.Type == m.phase && args.WorkId == taskHead.workerId {
 		// task failed
 		if !args.Result{
-			taskHead.Status = TaskFailed
+			m.taskHeadList[TaskId].Status = TaskFailed
 			return nil
 		}
 		// task finished
 		// 只有当已完成的task的type和master当前阶段一样，才可对task head进行更新
 		// 否则会出现奇怪的错误
+		m.mutex.Lock()
+
 		m.taskHeadList[TaskId].Status = TaskFinished
+		m.mutex.Unlock()
 	}//else{
 		//可以加一个报错
 	//}

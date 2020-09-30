@@ -40,7 +40,7 @@ type TaskArgs struct {
 }
 
 type TaskReply struct {
-	task Task
+	Task Task
 }
 
 type ReportArgs struct{

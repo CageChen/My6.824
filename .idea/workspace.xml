@@ -3,7 +3,12 @@
   <component name="ChangeListManager">
     <list default="true" id="05e9b594-7733-421e-b45b-39778a801795" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/mrsequential.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/mrsequential.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/mr-tmp/mr-crash-all" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-crash-all" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/mr-tmp/mr-indexer-all" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/mr-tmp/mr-indexer-all" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/mrmaster" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/mrmaster" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/mrsequential" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/mrsequential" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/mrworker" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/mrworker" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/test-mr.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/test-mr.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mr/master.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/mr/master.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mr/rpc.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/mr/rpc.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/mr/worker.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/mr/worker.go" afterDir="false" />
@@ -54,11 +59,11 @@
       <screen x="0" y="0" width="1792" height="1120" />
     </state>
     <state x="360" y="222" key="#com.intellij.execution.impl.EditConfigurationsDialog/-1112.106.1112.811/0.0.1792.1120@0.0.1792.1120" timestamp="1600090435740" />
-    <state x="2686" y="474" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1601393346634">
+    <state x="2686" y="474" key="#com.intellij.fileTypes.FileTypeChooser" timestamp="1601463088430">
       <screen x="1792" y="0" width="2560" height="1440" />
     </state>
     <state x="626" y="369" key="#com.intellij.fileTypes.FileTypeChooser/-1112.83.1112.834/0.0.1792.1120@0.0.1792.1120" timestamp="1600091033573" />
-    <state x="2686" y="474" key="#com.intellij.fileTypes.FileTypeChooser/1792.0.2560.1440/0.0.1792.1120@1792.0.2560.1440" timestamp="1601393346634" />
+    <state x="2686" y="474" key="#com.intellij.fileTypes.FileTypeChooser/1792.0.2560.1440/0.0.1792.1120@1792.0.2560.1440" timestamp="1601463088430" />
     <state x="397" y="199" key="SettingsEditor" timestamp="1601349134421">
       <screen x="0" y="0" width="1792" height="1120" />
     </state>
