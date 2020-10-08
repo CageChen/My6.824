@@ -3,9 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="05e9b594-7733-421e-b45b-39778a801795" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/mrmaster" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/mrmaster" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/mrsequential" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/mrsequential" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/mrworker" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/mrworker" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/raft/raft.go" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/raft.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -54,6 +52,10 @@
     </state>
     <state x="753" y="508" key="#GOROOT/0.0.1792.1120@0.0.1792.1120" timestamp="1601964590598" />
     <state x="1075" y="653" key="#GOROOT/0.0.2560.1440@0.0.2560.1440" timestamp="1601472821116" />
+    <state x="619" y="395" key="#Notifications" timestamp="1602151668780">
+      <screen x="0" y="0" width="1792" height="1120" />
+    </state>
+    <state x="619" y="395" key="#Notifications/1792.-320.2560.1440/0.0.1792.1120@0.0.1792.1120" timestamp="1602151668780" />
     <state x="360" y="222" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1600090435740">
       <screen x="0" y="0" width="1792" height="1120" />
     </state>
