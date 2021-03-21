@@ -1,0 +1,141 @@
+2021/03/21 10:02:53 disconnect(0)
+2021/03/21 10:02:53 disconnect(1)
+2021/03/21 10:02:53 disconnect(2)
+2021/03/21 10:02:53 connect(0)
+2021/03/21 10:02:53 connect(1)
+2021/03/21 10:02:53 connect(2)
+Test (2A): initial election ...
+2021/03/21 10:02:53 [2] <Candidate> start election at term -1-
+2021/03/21 10:02:53 [2] <Candidate> send Request Vote to 1 at term 1
+2021/03/21 10:02:53 [2] <Candidate> send Request Vote to 0 at term 1
+2021/03/21 10:02:53 [0] <Follower> RequestVote at term 0
+2021/03/21 10:02:53 [1] <Follower> RequestVote at term 0
+2021/03/21 10:02:53 [1] <Follower> RequestVote term -> 1 state->Follower
+2021/03/21 10:02:53 [1] <Follower> RequestVote vote for 2 at term 1
+2021/03/21 10:02:53 [0] <Follower> RequestVote term -> 1 state->Follower
+2021/03/21 10:02:53 [0] <Follower> RequestVote vote for 2 at term 1
+2021/03/21 10:02:53 [2] <Candidate> got vote 1 -> 2 at term 1
+2021/03/21 10:02:53 [2] <Candidate> finished: 2
+2021/03/21 10:02:53 [2] <Candidate> got 2 votes and became Leader at term 1
+2021/03/21 10:02:53 [2] <Leader> establish its authority to 1 at term 1
+2021/03/21 10:02:53 [2] <Leader> got vote 0 -> 2 at term 1
+2021/03/21 10:02:53 [2] <Leader> establish its authority to 0 at term 1
+  ... Passed --   3.0  3   54    6702    0
+2021/03/21 10:02:56 disconnect(0)
+2021/03/21 10:02:56 disconnect(1)
+2021/03/21 10:02:56 disconnect(2)
+2021/03/21 10:02:56 connect(0)
+2021/03/21 10:02:56 connect(1)
+2021/03/21 10:02:56 connect(2)
+Test (2A): election after network failure
+ ...
+2021/03/21 10:02:56 [2] <Candidate> start election at term -1-
+2021/03/21 10:02:56 [2] <Candidate> send Request Vote to 1 at term 1
+2021/03/21 10:02:56 [2] <Candidate> send Request Vote to 0 at term 1
+2021/03/21 10:02:56 [0] <Follower> RequestVote at term 0
+2021/03/21 10:02:56 [0] <Follower> RequestVote term -> 1 state->Follower
+2021/03/21 10:02:56 [0] <Follower> RequestVote vote for 2 at term 1
+2021/03/21 10:02:56 [1] <Follower> RequestVote at term 0
+2021/03/21 10:02:56 [1] <Follower> RequestVote term -> 1 state->Follower
+2021/03/21 10:02:56 [1] <Follower> RequestVote vote for 2 at term 1
+2021/03/21 10:02:56 [2] <Candidate> got vote 0 -> 2 at term 1
+2021/03/21 10:02:56 [2] <Candidate> got vote 1 -> 2 at term 1
+2021/03/21 10:02:56 [2] <Candidate> finished: 3
+2021/03/21 10:02:56 [2] <Candidate> got 3 votes and became Leader at term 1
+2021/03/21 10:02:56 [2] <Leader> establish its authority to 1 at term 1
+2021/03/21 10:02:56 [2] <Leader> establish its authority to 0 at term 1
+2021/03/21 10:02:57 disconnect(2)
+2021/03/21 10:02:57 [1] <Candidate> start election at term -2-
+2021/03/21 10:02:57 [0] <Candidate> start election at term -2-
+2021/03/21 10:02:57 [1] <Candidate> send Request Vote to 2 at term 2
+2021/03/21 10:02:57 [0] <Candidate> send Request Vote to 2 at term 2
+2021/03/21 10:02:57 [0] <Candidate> send Request Vote to 1 at term 2
+2021/03/21 10:02:57 [1] <Candidate> send Request Vote to 0 at term 2
+2021/03/21 10:02:57 [1] <Candidate> RequestVote at term 2
+2021/03/21 10:02:57 [1] <Candidate> RequestVote already vote for 1 at term 2
+2021/03/21 10:02:57 [0] <Candidate> RequestVote at term 2
+2021/03/21 10:02:57 [0] <Candidate> RequestVote already vote for 0 at term 2
+2021/03/21 10:02:57 [0] <Candidate> didn't get a vote from 1 at term 2
+2021/03/21 10:02:57 [1] <Candidate> didn't get a vote from 0 at term 2
+2021/03/21 10:03:00 [1] <Candidate> failed to sendRequestVote to 2 at term 2
+2021/03/21 10:03:00 [1] <Candidate> didn't get a vote from 2 at term 2
+2021/03/21 10:03:00 [1] <Candidate> finished: 3
+2021/03/21 10:03:00 [1] <Candidate> lose the election at term 2, state -> Follower
+2021/03/21 10:03:00 [1] <Candidate> start election at term -3-
+2021/03/21 10:03:00 [1] <Candidate> send Request Vote to 2 at term 3
+2021/03/21 10:03:00 [1] <Candidate> send Request Vote to 0 at term 3
+2021/03/21 10:03:00 [0] <Candidate> RequestVote at term 2
+2021/03/21 10:03:00 [0] <Candidate> RequestVote term -> 3 state->Follower
+2021/03/21 10:03:00 [0] <Follower> RequestVote vote for 1 at term 3
+2021/03/21 10:03:00 [1] <Candidate> got vote 0 -> 1 at term 3
+2021/03/21 10:03:00 [1] <Candidate> finished: 2
+2021/03/21 10:03:00 [1] <Candidate> got 2 votes and became Leader at term 3
+2021/03/21 10:03:00 [1] <Leader> establish its authority to 2 at term 3
+2021/03/21 10:03:00 [1] <Leader> establish its authority to 0 at term 3
+2021/03/21 10:03:01 pass: leader disconnects
+2021/03/21 10:03:01 connect(2)
+2021/03/21 10:03:01 [1] <Leader> AppendEntries from old leader at term 3
+2021/03/21 10:03:01 [0] <Follower> AppendEntries from old leader at term 3
+2021/03/21 10:03:01 [2] <Leader> callAppendEntries to 1, old leader, term -> 3, state -> Follower
+2021/03/21 10:03:01 [2] <Candidate> start election at term -4-
+2021/03/21 10:03:01 [2] <Candidate> send Request Vote to 1 at term 4
+2021/03/21 10:03:01 [2] <Candidate> send Request Vote to 0 at term 4
+2021/03/21 10:03:01 [2] <Candidate> AppendEntries from old leader at term 4
+2021/03/21 10:03:01 [1] <Leader> RequestVote at term 3
+2021/03/21 10:03:01 [1] <Leader> RequestVote term -> 4 state->Follower
+2021/03/21 10:03:01 [1] <Follower> RequestVote vote for 2 at term 4
+2021/03/21 10:03:01 [0] <Follower> RequestVote at term 3
+2021/03/21 10:03:01 [0] <Follower> RequestVote term -> 4 state->Follower
+2021/03/21 10:03:01 [0] <Follower> RequestVote vote for 2 at term 4
+2021/03/21 10:03:01 [2] <Candidate> got vote 1 -> 2 at term 4
+2021/03/21 10:03:01 [2] <Candidate> finished: 2
+2021/03/21 10:03:01 [2] <Candidate> got 2 votes and became Leader at term 4
+2021/03/21 10:03:01 [2] <Leader> got vote 0 -> 2 at term 4
+2021/03/21 10:03:01 [2] <Leader> establish its authority to 1 at term 4
+2021/03/21 10:03:01 [2] <Leader> establish its authority to 0 at term 4
+2021/03/21 10:03:01 pass: old leader rejoins
+2021/03/21 10:03:01 disconnect(2)
+2021/03/21 10:03:01 disconnect(0)
+2021/03/21 10:03:02 [1] <Candidate> start election at term -5-
+2021/03/21 10:03:02 [1] <Candidate> send Request Vote to 2 at term 5
+2021/03/21 10:03:02 [1] <Candidate> send Request Vote to 0 at term 5
+2021/03/21 10:03:03 [0] <Follower> failed to sendRequestVote to 2 at term 2
+2021/03/21 10:03:03 [0] <Follower> didn't get a vote from 2 at term 2
+2021/03/21 10:03:03 [0] <Follower> finished: 3
+2021/03/21 10:03:03 [0] <Candidate> start election at term -5-
+2021/03/21 10:03:03 [0] <Candidate> send Request Vote to 2 at term 5
+2021/03/21 10:03:03 [0] <Candidate> send Request Vote to 1 at term 5
+2021/03/21 10:03:03 [1] <Candidate> failed to sendRequestVote to 2 at term 5
+2021/03/21 10:03:03 [1] <Candidate> didn't get a vote from 2 at term 5
+2021/03/21 10:03:03 pass: no quorum
+2021/03/21 10:03:03 connect(0)
+2021/03/21 10:03:05 [1] <Candidate> failed to sendRequestVote to 2 at term 3
+2021/03/21 10:03:05 [1] <Candidate> didn't get a vote from 2 at term 3
+2021/03/21 10:03:06 [0] <Candidate> failed to sendRequestVote to 2 at term 5
+2021/03/21 10:03:06 [0] <Candidate> didn't get a vote from 2 at term 5
+2021/03/21 10:03:07 [1] <Candidate> failed to sendRequestVote to 0 at term 5
+2021/03/21 10:03:07 [1] <Candidate> didn't get a vote from 0 at term 5
+2021/03/21 10:03:07 [1] <Candidate> finished: 3
+2021/03/21 10:03:07 [1] <Candidate> lose the election at term 5, state -> Follower
+2021/03/21 10:03:07 [1] <Candidate> start election at term -6-
+2021/03/21 10:03:07 [1] <Candidate> send Request Vote to 2 at term 6
+2021/03/21 10:03:07 [1] <Candidate> send Request Vote to 0 at term 6
+2021/03/21 10:03:07 [0] <Candidate> RequestVote at term 5
+2021/03/21 10:03:07 [0] <Candidate> RequestVote term -> 6 state->Follower
+2021/03/21 10:03:07 [0] <Follower> RequestVote vote for 1 at term 6
+2021/03/21 10:03:07 [1] <Candidate> got vote 0 -> 1 at term 6
+2021/03/21 10:03:07 [1] <Candidate> finished: 2
+2021/03/21 10:03:07 [1] <Candidate> got 2 votes and became Leader at term 6
+2021/03/21 10:03:07 [1] <Leader> establish its authority to 2 at term 6
+2021/03/21 10:03:07 [1] <Leader> establish its authority to 0 at term 6
+2021/03/21 10:03:07 [1] <Leader> failed to establish its authority to 2 at term 3
+2021/03/21 10:03:07 pass:  a quorum arises
+2021/03/21 10:03:07 connect(2)
+2021/03/21 10:03:07 [2] <Leader> AppendEntries term -> 6
+2021/03/21 10:03:07 [2] <Leader> AppendEntries state -> Follower
+2021/03/21 10:03:07 [0] <Follower> failed to sendRequestVote to 1 at term 5
+2021/03/21 10:03:07 [0] <Follower> didn't get a vote from 1 at term 5
+2021/03/21 10:03:07 [0] <Follower> finished: 3
+  ... Passed --  11.6  3  248   18056    0
+PASS
+ok  	_/Users/cage/workspace/My6.824/src/raft	14.693s

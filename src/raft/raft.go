@@ -54,6 +54,12 @@ const (
 	Leader    = "Leader"
 )
 
+// Log
+type Log struct {
+	Command interface{}
+	Term    int
+}
+
 // time
 const (
 	HeartBeatTimeout = time.Millisecond * 100 // leader 发送心跳
@@ -76,9 +82,7 @@ type Raft struct {
 	// Look at the paper's Figure 2 for a description of what
 	// state a Raft server must maintain.
 	currentItem int
-	voteFor int
-	
-
+	voteFor     int
 
 	// 2A
 	state         State
@@ -87,6 +91,15 @@ type Raft struct {
 	timeout       time.Duration
 	connectTime   time.Time // this peer's last connect time with leader or start time of new election
 	heartbeatTime time.Time
+
+	// 2B
+	log []Log
+	// volatile state on all servers
+	commitIndex int
+	lastApplied int
+	// volatile state on leaders
+	nextIndex  []int
+	matchIndex []int
 }
 
 // return currentTerm and whether this server
@@ -148,6 +161,10 @@ type RequestVoteArgs struct {
 	// 2A
 	Term        int
 	CandidateId int
+
+	// 2B
+	lastLogIndex int
+	lastLogTerm  int
 }
 
 type RequestVoteReply struct {
@@ -162,6 +179,12 @@ type AppendEntriesArgs struct {
 	// 2A
 	Term     int
 	LeaderId int
+
+	// 2B
+	PrevLogIndex int
+	PrevLogTerm  int
+	Entries      []Log
+	LeaderCommit int
 }
 
 type AppendEntriesReply struct {
@@ -226,7 +249,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 		rf.currentTerm = args.Term
 		// state -> Follower, reset votedFor, and vote
 		//if rf.state != Follower {
-		DPrintf("[%d] <%s> RequestVote term -> %d state->Follower", rf.me, rf.state,rf.currentTerm)
+		DPrintf("[%d] <%s> RequestVote term -> %d state->Follower", rf.me, rf.state, rf.currentTerm)
 		rf.state = Follower
 		rf.votedFor = -1
 		//}
@@ -335,6 +358,7 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	isLeader := true
 
 	// Your code here (2B).
+	// 2B
 
 	return index, term, isLeader
 }
@@ -418,6 +442,7 @@ func (rf *Raft) startElection() {
 	rf.votedFor = rf.me    // vote for itself
 	rf.timeout = time.Duration(300+rand.Int31n(200)) * time.Millisecond
 	rf.connectTime = time.Now() // reset election timer
+	rf.persist()                // updated on stable storage
 	rf.mu.Unlock()
 	DPrintf("[%d] <%s> start election at term -%d-", rf.me, rf.state, rf.currentTerm)
 	// 统计获得的投票
