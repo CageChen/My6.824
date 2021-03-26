@@ -63,9 +63,7 @@ type LogEntry struct {
 // time
 const (
 	HeartBeatTimeout = time.Millisecond * 100 // leader 发送心跳
-	ApplyInterval    = time.Millisecond * 100 // apply log
-	RPCTimeout       = time.Millisecond * 100
-	MaxLockTime      = time.Millisecond * 10 // debug
+	ApplyTimeout     = time.Millisecond * 100 // apply log
 )
 
 //
@@ -137,6 +135,9 @@ func (rf *Raft) persist() {
 	// e.Encode(rf.yyy)
 	// data := w.Bytes()
 	// rf.persister.SaveRaftState(data)
+
+	// 2C
+
 }
 
 //
@@ -159,6 +160,9 @@ func (rf *Raft) readPersist(data []byte) {
 	//   rf.xxx = xxx
 	//   rf.yyy = yyy
 	// }
+
+	// 2C
+
 }
 
 type RequestVoteArgs struct {
@@ -209,7 +213,6 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 func (rf *Raft) callRequestVote(server int, term int) bool {
 	DPrintf("[%d] <%s> send Request Vote to %d at term %d", rf.me, rf.state, server, term)
 	// initial args and reply
-
 	lastLogIndex := 0
 	lastLogTerm := 0
 	if rf.lastLogIndex() > 0 {
@@ -226,7 +229,7 @@ func (rf *Raft) callRequestVote(server int, term int) bool {
 	// send rpc
 	if ok := rf.sendRequestVote(server, &args, &reply); !ok {
 		DPrintf("[%d] <%s> failed to sendRequestVote to %d at term %d", rf.me, rf.state, server, term)
-		return false // rpc failed，VoteGranted = false
+		return false // rpc failed
 	}
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
@@ -257,20 +260,14 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 		return
 	}
 
-	// args.Term >= rf.currentTerm
-	// reset election timeout
-	//rf.connectTime = time.Now()
-
 	if args.Term > rf.currentTerm {
 		// update rf.currentTerm
 		rf.currentTerm = args.Term
 		// state -> Follower, reset votedFor, and vote
-		//if rf.state != Follower {
 		DPrintf("[%d] <%s> RequestVote term -> %d state->Follower", rf.me, rf.state, rf.currentTerm)
 		rf.state = Follower
 		rf.votedFor = -1
 		rf.connectTime = time.Now()
-		//}
 	}
 
 	reply.Term = rf.currentTerm
@@ -280,15 +277,14 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	if rf.lastLogIndex() > 0 {
 		lastLogTerm = rf.log[rf.lastLogIndex()-1].Term
 	}
-	DPrintf("[%d] <%s> RequestVote args.LastLogIndex: %d args.LastLogTerm: %d lastLogIndex: %d " +
-		"lastLogTerm: %d at term %d", rf.me, rf.state,args.LastLogIndex,args.LastLogTerm,rf.lastLogIndex(),
-		lastLogTerm,rf.currentTerm)
+	DPrintf("[%d] <%s> RequestVote args.LastLogIndex: %d args.LastLogTerm: %d lastLogIndex: %d "+
+		"lastLogTerm: %d at term %d", rf.me, rf.state, args.LastLogIndex, args.LastLogTerm, rf.lastLogIndex(),
+		lastLogTerm, rf.currentTerm)
 
 	if args.LastLogTerm > lastLogTerm {
 		isUpToDate = true
-	} else if args.LastLogTerm == lastLogTerm && args.LastLogIndex >= rf.lastLogIndex(){
-			isUpToDate = true
-
+	} else if args.LastLogTerm == lastLogTerm && args.LastLogIndex >= rf.lastLogIndex() {
+		isUpToDate = true
 	}
 
 	if rf.votedFor == -1 && isUpToDate {
@@ -319,24 +315,12 @@ func (rf *Raft) callAppendEntries(server int, term int) bool {
 	DPrintf("[%d] <%s> lastLogIndex: %d commitIndex: %d lastApplied: %d callAppendEntries to [%d nextIndex: %d matchIndex: %d] at term %d",
 		rf.me, rf.state, rf.lastLogIndex(), rf.commitIndex, rf.lastApplied, server, rf.nextIndex[server], rf.matchIndex[server], term)
 
-	// rpc后term会发生变化
-	//term := rf.currentTerm
-
-	// rf.nextIndex[server]-1保证该LogEntry存在
 	nextIndex := rf.nextIndex[server]
-	//prevLogIndex := nextIndex - 1
 	prevLogIndex := nextIndex - 1
-
-	// 这里的第一次term会有问题
-	// 后面的term可能也会出现问题
-	prevLogTerm := 0
-	//prevLogTerm := 1 // 第一个应该设为1
+	prevLogTerm := 0 // 无Log时，prevLogTerm=0
 	if prevLogIndex-1 >= 0 {
 		prevLogTerm = rf.log[prevLogIndex-1].Term
 	}
-
-	//if prevLogIndex
-	//prevLogTerm = rf.log[prevLogIndex].Term
 
 	entries := make([]LogEntry, 0)
 
@@ -358,14 +342,12 @@ func (rf *Raft) callAppendEntries(server int, term int) bool {
 	}
 	reply := AppendEntriesReply{}
 	if ok := rf.sendAppendEntries(server, &args, &reply); !ok {
-		//DPrintf("[%d] <%s> failed to callAppendEntries to %d at term %d", rf.me, rf.state, server, term)
-		DPrintf("go here")
+		DPrintf("[%d] <%s> failed to callAppendEntries to %d at term %d", rf.me, rf.state, server, term)
 		return false
 	}
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
-	// rpc success
-	// failed
+
 	if !reply.Success {
 		// term is old
 		if rf.currentTerm < reply.Term {
@@ -377,64 +359,51 @@ func (rf *Raft) callAppendEntries(server int, term int) bool {
 			rf.persist()
 			return false
 		}
-		// log inconsistency
-		//DPrintf("[%d] <%s> callAppendEntries success=false", rf.me, rf.state)
-		// 刚开始无log，不能减少
 
-		if reply.ConflictingFirstEntryIndex !=0{
+		if reply.ConflictingFirstEntryIndex != 0 {
 			rf.nextIndex[server] = reply.ConflictingFirstEntryIndex
-		}else{
+		} else {
 			rf.nextIndex[server]--
 		}
 
-		// ！！！nextIndex需要减少
-		//if rf.nextIndex[server] > 1 {
-		//	rf.nextIndex[server]--
-		//}
 		DPrintf("[%d] <%s> callAppendEntries reply=false to [%d nextIndex->%d matchIndex->%d] at term %d",
 			rf.me, rf.state, server, rf.nextIndex[server], rf.matchIndex[server], rf.currentTerm)
 
 		return false
 	}
 	// success
-	if reply.Success {
-		DPrintf("[%d] <%s> callAppendEntries reply=success to [%d nextIndex: %d matchIndex: %d] at term %d",
-			rf.me, rf.state, server, rf.nextIndex[server], rf.matchIndex[server], rf.currentTerm)
+	DPrintf("[%d] <%s> callAppendEntries reply=success to [%d nextIndex: %d matchIndex: %d] at term %d",
+		rf.me, rf.state, server, rf.nextIndex[server], rf.matchIndex[server], rf.currentTerm)
 
-		// entries不一定都加上去了
-		// 这里需要修改！！！！
-		// 重复的可能没有加上去？
-		rf.nextIndex[server] = nextIndex + len(entries)
-		rf.matchIndex[server] = rf.nextIndex[server] - 1
+	rf.nextIndex[server] = nextIndex + len(entries)
+	rf.matchIndex[server] = rf.nextIndex[server] - 1
 
-		// 自己的matchIndex没有修改
-		// 所以count默认为1
-		// 因为leader肯定是match的
-
-		isUpdateCommitIndex := false
-		var n int
-		for n = rf.lastLogIndex(); n > rf.commitIndex; n-- {
-			//count := 0
-			count := 1
-			for server, _ := range rf.peers {
-				if rf.matchIndex[server] >= n {
-					count++
-				}
-			}
-			if count > len(rf.peers)/2 {
-				if rf.log[n-1].Term == rf.currentTerm {
-					isUpdateCommitIndex = true
-					break
-				}
+	// 自己的matchIndex没有修改
+	// 所以count默认为1
+	// 因为leader肯定是match的
+	isUpdateCommitIndex := false
+	var n int
+	for n = rf.lastLogIndex(); n > rf.commitIndex; n-- {
+		//count := 0
+		count := 1
+		for server, _ := range rf.peers {
+			if rf.matchIndex[server] >= n {
+				count++
 			}
 		}
-		if isUpdateCommitIndex {
-			rf.commitIndex = n
-			DPrintf("[%d] <%s> callAppendEntries commitIndex-> %d at term %d",
-				rf.me, rf.state, rf.commitIndex, rf.currentTerm)
-
+		if count > len(rf.peers)/2 {
+			if rf.log[n-1].Term == rf.currentTerm {
+				isUpdateCommitIndex = true
+				break
+			}
 		}
 	}
+	if isUpdateCommitIndex {
+		rf.commitIndex = n
+		DPrintf("[%d] <%s> callAppendEntries commitIndex-> %d at term %d",
+			rf.me, rf.state, rf.commitIndex, rf.currentTerm)
+	}
+
 	return true
 }
 
@@ -442,12 +411,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	// 2A
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
-	//DPrintf("[%d] <%s> AppendEntries at term %d", rf.me, rf.state, rf.currentTerm)
-
-	// update lastApplied
-	//if rf.commitIndex > rf.lastApplied {
-	//	rf.lastApplied++
-	//}
 
 	DPrintf("[%d] <%s> AppendEntries PrevlogIndex: %d PrevlogTerm: %d at term %d",
 		rf.me, rf.state, args.PrevLogIndex, args.PrevLogTerm, rf.currentTerm)
@@ -463,7 +426,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	rf.connectTime = time.Now()
 	rf.leaderId = args.LeaderId
 
-	// args.Term >= rf.currentTerm
 	// update rf.currentTerm
 	if args.Term > rf.currentTerm {
 		rf.currentTerm = args.Term
@@ -473,76 +435,18 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			DPrintf("[%d] <%s> AppendEntries state -> Follower", rf.me, rf.state)
 			rf.state = Follower
 			rf.votedFor = -1
+			rf.persist()
 		}
 	}
 	reply.Term = rf.currentTerm
-	//  dont have the entry
-	//if args.PrevLogIndex > rf.lastLogIndex() {
-	//	DPrintf("[%d] <%s> AppendEntries dont have the entry at term %d", rf.me, rf.state, rf.currentTerm)
-	//	reply.Success = false
-	//	return
-	//}
 
-	// Leader当前无log
-	//if args.PrevLogIndex == 0{
-	//	reply.Success = false
-	//	return
-	//}
+	DPrintf("[%d] AppendEntries PrevLogIndex %d lastLogIndex %d at term %d", rf.me,args.PrevLogIndex, rf.lastLogIndex(), rf.currentTerm)
 	if args.PrevLogIndex > rf.lastLogIndex() {
-		DPrintf("point1")
+		DPrintf("[%d] AppendEntries PrevLogIndex %d > lastLogIndex %d, Success=false at term %d", rf.me,args.PrevLogIndex, rf.lastLogIndex(), rf.currentTerm)
 		reply.Success = false
 		return
 	}
 
-	// term doesnt match
-	//if args.PrevLogIndex-1 >= 0 && args.PrevLogIndex<len(rf.log){
-	//	if rf.log[args.PrevLogIndex-1].Term != args.PrevLogTerm {
-	//		DPrintf("[%d] <%s> AppendEntries term doesnt match at term %d rf.log.term %d args.prevlogterm %d", rf.me, rf.state, rf.currentTerm, rf.log[args.PrevLogIndex-1].Term, args.PrevLogTerm)
-	//
-	//		reply.Success = false
-	//		DPrintf("[%d] <%s> AppendEntries term doesnt match at term %d", rf.me, rf.state, rf.currentTerm)
-	//		return
-	//	}
-	//}
-	//if args.PrevLogIndex > rf.lastLogIndex(){
-	//rf.log = append(rf.log,args.Entries...)
-	//DPrintf("[%d] <%s> AppendEntries add %d entries %d at term %d", rf.me, rf.state,len(args.Entries),args.Entries, rf.currentTerm)
-	//}
-
-	// 该entry的实际index要比prevlogindex大1
-	// 这里有问题！！！
-
-	//if args.PrevLogIndex+1 <= rf.lastLogIndex() && args.PrevLogIndex >=1{
-	//	DPrintf("PrevLogIndex %d lastLogIndex: %d",args.PrevLogIndex,rf.lastLogIndex())
-	//	if rf.log[args.PrevLogIndex-1].Term != args.PrevLogTerm{
-	//		DPrintf("[%d] <%s> AppendEntries PrevlogIndex: %d PrevlogTerm: %d doesnt match local entry index: %d term: %d, at term %d",
-	//			rf.me, rf.state, args.PrevLogIndex,args.PrevLogTerm,args.PrevLogIndex,rf.log[args.PrevLogIndex-1].Term,rf.currentTerm)
-	//	}
-	//	reply.Success = false
-	//	return
-	//}
-
-	//if args.PrevLogIndex+1 <= rf.lastLogIndex() && args.PrevLogIndex >=0{
-	//	DPrintf("PrevLogIndex %d lastLogIndex: %d",args.PrevLogIndex,rf.lastLogIndex())
-	//	if rf.log[args.PrevLogIndex].Term != args.PrevLogTerm{
-	//		DPrintf("[%d] <%s> AppendEntries PrevlogIndex: %d PrevlogTerm: %d doesnt match local entry index: %d term: %d, at term %d",
-	//			rf.me, rf.state, args.PrevLogIndex,args.PrevLogTerm,args.PrevLogIndex,rf.log[args.PrevLogIndex-1].Term,rf.currentTerm)
-	//	}
-	//	reply.Success = false
-	//	return
-	//}
-
-	DPrintf("point2")
-	DPrintf("PrevLogIndex %d lastLogIndex: %d rf.lastLogIndex %d", args.PrevLogIndex, rf.lastLogIndex(), rf.lastLogIndex())
-	//if args.PrevLogIndex+1 <= rf.lastLogIndex() && args.PrevLogIndex >=0{
-	//	DPrintf("point3")
-	//	if rf.log[args.PrevLogIndex].Term != args.PrevLogTerm{
-	//		DPrintf("[%d] <%s> AppendEntries PrevlogIndex: %d PrevlogTerm: %d doesnt match local entry index: %d term: %d, at term %d",
-	//			rf.me, rf.state, args.PrevLogIndex,args.PrevLogTerm,args.PrevLogIndex,rf.log[args.PrevLogIndex-1].Term,rf.currentTerm)
-	//	}
-	//	reply.Success = false
-	//	return
-	//}
 
 	// args.PrevLogIndex>=1保证访问不存在日志
 	if args.PrevLogIndex <= rf.lastLogIndex() && args.PrevLogIndex >= 1 {
@@ -550,35 +454,19 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		if rf.log[args.PrevLogIndex-1].Term != args.PrevLogTerm {
 			DPrintf("[%d] <%s> AppendEntries PrevlogIndex: %d PrevlogTerm: %d doesnt match local entry index: %d term: %d, at term %d",
 				rf.me, rf.state, args.PrevLogIndex, args.PrevLogTerm, args.PrevLogIndex, rf.log[args.PrevLogIndex-1].Term, rf.currentTerm)
-			for conflictingFirstEntryIndex := rf.lastApplied+1;conflictingFirstEntryIndex<=rf.lastLogIndex();conflictingFirstEntryIndex++ {
-				if rf.log[conflictingFirstEntryIndex-1].Term == rf.log[args.PrevLogIndex-1].Term{
+			for conflictingFirstEntryIndex := rf.lastApplied + 1; conflictingFirstEntryIndex <= rf.lastLogIndex(); conflictingFirstEntryIndex++ {
+				if rf.log[conflictingFirstEntryIndex-1].Term == rf.log[args.PrevLogIndex-1].Term {
 					reply.ConflictingFirstEntryIndex = conflictingFirstEntryIndex
-					DPrintf("[%d] <%s> AppendEntries firstIndex-> %d at term %d",
-						rf.me,rf.state,reply.ConflictingFirstEntryIndex,rf.currentTerm)
+					//DPrintf("[%d] <%s> AppendEntries firstIndex-> %d at term %d",
+					//	rf.me, rf.state, reply.ConflictingFirstEntryIndex, rf.currentTerm)
 					break
 				}
 			}
-			//for conflictingFirstEntryIndex := rf.lastLogIndex();conflictingFirstEntryIndex>=1;conflictingFirstEntryIndex--{
-			//	if rf.log[conflictingFirstEntryIndex-1].Term == rf.log[args.PrevLogIndex-1].Term{
-			//		DPrintf("[%d] <%s> AppendEntries FirstEntryIndex %d at term %d",
-			//			rf.me, rf.state, conflictingFirstEntryIndex, rf.currentTerm)
-			//	}else{
-			//		reply.ConflictingFirstEntryIndex = conflictingFirstEntryIndex+1
-			//	}
-			//}
-
-
 			reply.Success = false
 			return
 		}
 	}
 
-	// append new entries
-	//if len(args.Entries)==0{
-	//	DPrintf("[%d] <%s> AppendEntries append 0 entries at term %d", rf.me, rf.state, rf.currentTerm)
-	//	reply.Success = false
-	//	return
-	//}
 
 	for i, entry := range args.Entries {
 		if len(rf.log) > 0 {
@@ -588,18 +476,13 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		newEntryIndex := args.PrevLogIndex + i + 1
 		DPrintf("[%d] appendEntries newEntry index: %d term: %d at term %d", rf.me, newEntryIndex,
 			entry.Term, rf.currentTerm)
-		// same index but different terms
-		//if len(rf.log) == 0 {
-		//	rf.log = append(rf.log, args.Entries...)
-		//	break
-		//}
+
 		if newEntryIndex > rf.lastLogIndex() {
 			rf.log = append(rf.log, args.Entries...)
 			continue
 		}
 		// 这里是地址，index-1
 		if rf.log[newEntryIndex-1].Term != entry.Term {
-			// newEntryIndex-1+1
 			// delete the existing entry and all that follow it
 			rf.log = rf.log[:newEntryIndex-1]
 			rf.log = append(rf.log, args.Entries[i:]...)
@@ -612,7 +495,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		}
 	}
 
-	DPrintf("[%d] <%s> AppendEntries args.LeaderCommit %d rf.commitIndex %d rf.lastApplied %d", rf.me, rf.state, args.LeaderCommit, rf.commitIndex, rf.lastApplied)
+	//DPrintf("[%d] <%s> AppendEntries args.LeaderCommit %d rf.commitIndex %d rf.lastApplied %d", rf.me, rf.state, args.LeaderCommit, rf.commitIndex, rf.lastApplied)
 
 	if args.LeaderCommit > rf.commitIndex {
 
