@@ -197,6 +197,8 @@ type AppendEntriesReply struct {
 	// 2A
 	Term    int
 	Success bool
+	//conflictingEntryItem int
+	ConflictingFirstEntryIndex int
 }
 
 func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *RequestVoteReply) bool {
@@ -327,8 +329,8 @@ func (rf *Raft) callAppendEntries(server int, term int) bool {
 
 	// 这里的第一次term会有问题
 	// 后面的term可能也会出现问题
-	//prevLogTerm := 0
-	prevLogTerm := 1 // 第一个应该设为1
+	prevLogTerm := 0
+	//prevLogTerm := 1 // 第一个应该设为1
 	if prevLogIndex-1 >= 0 {
 		prevLogTerm = rf.log[prevLogIndex-1].Term
 	}
@@ -379,11 +381,16 @@ func (rf *Raft) callAppendEntries(server int, term int) bool {
 		//DPrintf("[%d] <%s> callAppendEntries success=false", rf.me, rf.state)
 		// 刚开始无log，不能减少
 
-		// ！！！nextIndex需要减少
-
-		if rf.nextIndex[server] > 1 {
+		if reply.ConflictingFirstEntryIndex !=0{
+			rf.nextIndex[server] = reply.ConflictingFirstEntryIndex
+		}else{
 			rf.nextIndex[server]--
 		}
+
+		// ！！！nextIndex需要减少
+		//if rf.nextIndex[server] > 1 {
+		//	rf.nextIndex[server]--
+		//}
 		DPrintf("[%d] <%s> callAppendEntries reply=false to [%d nextIndex->%d matchIndex->%d] at term %d",
 			rf.me, rf.state, server, rf.nextIndex[server], rf.matchIndex[server], rf.currentTerm)
 
@@ -537,11 +544,30 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	//	return
 	//}
 
+	// args.PrevLogIndex>=1保证访问不存在日志
 	if args.PrevLogIndex <= rf.lastLogIndex() && args.PrevLogIndex >= 1 {
 		DPrintf("point3")
 		if rf.log[args.PrevLogIndex-1].Term != args.PrevLogTerm {
 			DPrintf("[%d] <%s> AppendEntries PrevlogIndex: %d PrevlogTerm: %d doesnt match local entry index: %d term: %d, at term %d",
 				rf.me, rf.state, args.PrevLogIndex, args.PrevLogTerm, args.PrevLogIndex, rf.log[args.PrevLogIndex-1].Term, rf.currentTerm)
+			for conflictingFirstEntryIndex := rf.lastApplied+1;conflictingFirstEntryIndex<=rf.lastLogIndex();conflictingFirstEntryIndex++ {
+				if rf.log[conflictingFirstEntryIndex-1].Term == rf.log[args.PrevLogIndex-1].Term{
+					reply.ConflictingFirstEntryIndex = conflictingFirstEntryIndex
+					DPrintf("[%d] <%s> AppendEntries firstIndex-> %d at term %d",
+						rf.me,rf.state,reply.ConflictingFirstEntryIndex,rf.currentTerm)
+					break
+				}
+			}
+			//for conflictingFirstEntryIndex := rf.lastLogIndex();conflictingFirstEntryIndex>=1;conflictingFirstEntryIndex--{
+			//	if rf.log[conflictingFirstEntryIndex-1].Term == rf.log[args.PrevLogIndex-1].Term{
+			//		DPrintf("[%d] <%s> AppendEntries FirstEntryIndex %d at term %d",
+			//			rf.me, rf.state, conflictingFirstEntryIndex, rf.currentTerm)
+			//	}else{
+			//		reply.ConflictingFirstEntryIndex = conflictingFirstEntryIndex+1
+			//	}
+			//}
+
+
 			reply.Success = false
 			return
 		}
@@ -883,11 +909,11 @@ func (rf *Raft) HeartbeatRoutine() {
 
 func (rf *Raft) ApplyLogRoutine() {
 	for !rf.killed() {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 		//rf.mu.Lock()
 		//defer rf.mu.Unlock()
 		// If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine
-		if rf.commitIndex > rf.lastApplied {
+		for rf.commitIndex > rf.lastApplied {
 			rf.lastApplied++
 			applyMsg := ApplyMsg{
 				CommandValid: true,
