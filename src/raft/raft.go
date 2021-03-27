@@ -18,12 +18,14 @@ package raft
 //
 
 import (
+	"bytes"
 	"math/rand"
 	"sync"
 	"time"
 )
 import "sync/atomic"
 import "../labrpc"
+import "../labgob"
 
 // import "bytes"
 // import "../labgob"
@@ -137,6 +139,18 @@ func (rf *Raft) persist() {
 	// rf.persister.SaveRaftState(data)
 
 	// 2C
+	//rf.mu.Lock()
+	//defer rf.mu.Unlock()
+	writer := new(bytes.Buffer)
+	encoder := labgob.NewEncoder(writer)
+	encoder.Encode(rf.currentTerm)
+	encoder.Encode(rf.votedFor)
+	encoder.Encode(rf.log)
+	data := writer.Bytes()
+	rf.persister.SaveRaftState(data)
+
+	DPrintf("[%d] <%s> persist state currentTerm %d votedFor %d len(log) %d to stable storage at term %d", rf.me, rf.state, rf.currentTerm,
+		rf.votedFor, len(rf.log), rf.currentTerm)
 
 }
 
@@ -162,6 +176,26 @@ func (rf *Raft) readPersist(data []byte) {
 	// }
 
 	// 2C
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+
+	reader := bytes.NewBuffer(data)
+	decoder := labgob.NewDecoder(reader)
+	var currentTerm int
+	var votedFor int
+	var log []LogEntry
+	if decoder.Decode(&currentTerm) != nil || decoder.Decode(&votedFor) != nil || decoder.Decode(&log) != nil {
+		DPrintf("[%d] <%s> persist state from stable storage failed at term %d", rf.me, rf.state, rf.currentTerm)
+	} else {
+		rf.currentTerm = currentTerm
+		rf.votedFor = votedFor
+		rf.log = log
+	}
+	//decoder.Decode(&rf.currentTerm)
+	//decoder.Decode(&rf.votedFor)
+	//decoder.Decode(&rf.log)
+
+	DPrintf("[%d] <%s> persist state from stable storage success term -> %d votedFor -> %d len(log) -> %d", rf.me, rf.state, rf.currentTerm, rf.votedFor, len(rf.log))
 
 }
 
@@ -229,6 +263,7 @@ func (rf *Raft) callRequestVote(server int, term int) bool {
 	// send rpc
 	if ok := rf.sendRequestVote(server, &args, &reply); !ok {
 		DPrintf("[%d] <%s> failed to sendRequestVote to %d at term %d", rf.me, rf.state, server, term)
+		rf.persist()
 		return false // rpc failed
 	}
 	rf.mu.Lock()
@@ -241,6 +276,7 @@ func (rf *Raft) callRequestVote(server int, term int) bool {
 		rf.persist()
 		return false
 	}
+	rf.persist()
 	return reply.VoteGranted
 
 }
@@ -435,22 +471,22 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			DPrintf("[%d] <%s> AppendEntries state -> Follower", rf.me, rf.state)
 			rf.state = Follower
 			rf.votedFor = -1
-			rf.persist()
+			//rf.persist()
 		}
+		rf.persist()
 	}
 	reply.Term = rf.currentTerm
 
-	DPrintf("[%d] AppendEntries PrevLogIndex %d lastLogIndex %d at term %d", rf.me,args.PrevLogIndex, rf.lastLogIndex(), rf.currentTerm)
+	DPrintf("[%d] AppendEntries PrevLogIndex %d lastLogIndex %d at term %d", rf.me, args.PrevLogIndex, rf.lastLogIndex(), rf.currentTerm)
 	if args.PrevLogIndex > rf.lastLogIndex() {
-		DPrintf("[%d] AppendEntries PrevLogIndex %d > lastLogIndex %d, Success=false at term %d", rf.me,args.PrevLogIndex, rf.lastLogIndex(), rf.currentTerm)
+		DPrintf("[%d] AppendEntries PrevLogIndex %d > lastLogIndex %d, Success=false at term %d", rf.me, args.PrevLogIndex, rf.lastLogIndex(), rf.currentTerm)
 		reply.Success = false
 		return
 	}
 
-
 	// args.PrevLogIndex>=1保证访问不存在日志
 	if args.PrevLogIndex <= rf.lastLogIndex() && args.PrevLogIndex >= 1 {
-		DPrintf("point3")
+		//DPrintf("point3")
 		if rf.log[args.PrevLogIndex-1].Term != args.PrevLogTerm {
 			DPrintf("[%d] <%s> AppendEntries PrevlogIndex: %d PrevlogTerm: %d doesnt match local entry index: %d term: %d, at term %d",
 				rf.me, rf.state, args.PrevLogIndex, args.PrevLogTerm, args.PrevLogIndex, rf.log[args.PrevLogIndex-1].Term, rf.currentTerm)
@@ -466,7 +502,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			return
 		}
 	}
-
 
 	for i, entry := range args.Entries {
 		if len(rf.log) > 0 {
@@ -550,7 +585,8 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		rf.me, rf.state, rf.commitIndex, rf.lastApplied, rf.lastLogIndex(), rf.currentTerm)
 	index = rf.lastLogIndex()
 	term = rf.currentTerm
-
+	// Leader收到Entry，需要持久化保存
+	rf.persist()
 	return index, term, isLeader
 }
 
@@ -715,6 +751,7 @@ func (rf *Raft) startElection() {
 		rf.state = Leader
 		rf.votedFor = -1
 		rf.leaderId = rf.me
+		rf.persist()
 		rf.connectTime = time.Now()   // reset election timer
 		rf.heartbeatTime = time.Now() // reset heartbeat timer
 
