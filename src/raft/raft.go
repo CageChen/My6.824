@@ -102,6 +102,10 @@ type Raft struct {
 	nextIndex  []int
 	matchIndex []int
 	applyCh    chan ApplyMsg
+
+	// 2C
+	lastIncludedIndex int
+	lastIncludedTerm  int
 }
 
 func (rf *Raft) lastLogIndex() int {
@@ -239,6 +243,20 @@ type AppendEntriesReply struct {
 	ConflictingFirstEntryIndex int
 }
 
+type InstallSnapshotArgs struct {
+	Term              int
+	LeaderId          int
+	LastIncludedIndex int
+	LastIncludedTerm  int
+	Offset            int
+	Data              []byte
+	Done              bool
+}
+
+type InstallSnapshotReply struct {
+	Term int
+}
+
 func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *RequestVoteReply) bool {
 	ok := rf.peers[server].Call("Raft.RequestVote", args, reply)
 	return ok
@@ -303,6 +321,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 		DPrintf("[%d] <%s> RequestVote term -> %d state->Follower", rf.me, rf.state, rf.currentTerm)
 		rf.state = Follower
 		rf.votedFor = -1
+		rf.persist()
 		rf.connectTime = time.Now()
 	}
 
@@ -412,8 +431,8 @@ func (rf *Raft) callAppendEntries(server int, term int) bool {
 		rf.me, rf.state, server, rf.nextIndex[server], rf.matchIndex[server], rf.currentTerm)
 
 	rf.nextIndex[server] = nextIndex + len(entries)
-	rf.matchIndex[server] = rf.nextIndex[server] - 1
-
+	//rf.matchIndex[server] = rf.nextIndex[server] - 1 (student guide)
+	rf.matchIndex[server] = prevLogIndex + len(args.Entries)
 	// 自己的matchIndex没有修改
 	// 所以count默认为1
 	// 因为leader肯定是match的
@@ -480,17 +499,19 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	DPrintf("[%d] AppendEntries PrevLogIndex %d lastLogIndex %d at term %d", rf.me, args.PrevLogIndex, rf.lastLogIndex(), rf.currentTerm)
 	if args.PrevLogIndex > rf.lastLogIndex() {
 		DPrintf("[%d] AppendEntries PrevLogIndex %d > lastLogIndex %d, Success=false at term %d", rf.me, args.PrevLogIndex, rf.lastLogIndex(), rf.currentTerm)
+		reply.ConflictingFirstEntryIndex = rf.lastLogIndex()
 		reply.Success = false
 		return
 	}
 
 	// args.PrevLogIndex>=1保证访问不存在日志
 	if args.PrevLogIndex <= rf.lastLogIndex() && args.PrevLogIndex >= 1 {
-		//DPrintf("point3")
+		// If an existing entry conflicts with a new one (same index but different terms)
 		if rf.log[args.PrevLogIndex-1].Term != args.PrevLogTerm {
 			DPrintf("[%d] <%s> AppendEntries PrevlogIndex: %d PrevlogTerm: %d doesnt match local entry index: %d term: %d, at term %d",
 				rf.me, rf.state, args.PrevLogIndex, args.PrevLogTerm, args.PrevLogIndex, rf.log[args.PrevLogIndex-1].Term, rf.currentTerm)
-			for conflictingFirstEntryIndex := rf.lastApplied + 1; conflictingFirstEntryIndex <= rf.lastLogIndex(); conflictingFirstEntryIndex++ {
+			//for conflictingFirstEntryIndex := rf.lastApplied + 1; conflictingFirstEntryIndex <= rf.lastLogIndex(); conflictingFirstEntryIndex++ {
+			for conflictingFirstEntryIndex := 1; conflictingFirstEntryIndex <= rf.lastLogIndex(); conflictingFirstEntryIndex++ {
 				if rf.log[conflictingFirstEntryIndex-1].Term == rf.log[args.PrevLogIndex-1].Term {
 					reply.ConflictingFirstEntryIndex = conflictingFirstEntryIndex
 					//DPrintf("[%d] <%s> AppendEntries firstIndex-> %d at term %d",
@@ -503,32 +524,59 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		}
 	}
 
-	for i, entry := range args.Entries {
-		if len(rf.log) > 0 {
-			DPrintf("index:%d term:%d command:%d", len(rf.log)-1, rf.log[len(rf.log)-1].Term, rf.log[len(rf.log)-1].Term)
-		}
-		// 该entry的实际index要比prevlogindex大1
-		newEntryIndex := args.PrevLogIndex + i + 1
-		DPrintf("[%d] appendEntries newEntry index: %d term: %d at term %d", rf.me, newEntryIndex,
-			entry.Term, rf.currentTerm)
+	//for i, entry := range args.Entries {
+	//	if len(rf.log) > 0 {
+	//		//DPrintf("index:%d term:%d command:%d", len(rf.log)-1, rf.log[len(rf.log)-1].Term, rf.log[len(rf.log)-1].Term)
+	//	}
+	//
+	//	s := ""
+	//	for _,log := range rf.log{
+	//		s += fmt.Sprintf("%v ",log.Command)
+	//	}
+	//	DPrintf("[%d] <%s> appendEntries cmd {%s}",rf.me,rf.state,s)
+	//
+	//	// 该entry的实际index要比prevlogindex大1
+	//	newEntryIndex := args.PrevLogIndex + i + 1
+	//
+	//	if newEntryIndex > rf.lastLogIndex() {
+	//		rf.log = append(rf.log, entry)
+	//		DPrintf("[%d] appendEntries {newEntryIndex > rf.lastLogIndex()} newEntry index: %d cmd: %v at term %d",
+	//			rf.me, newEntryIndex, entry.Command, rf.currentTerm)
+	//		continue
+	//	}
+	//	// 这里是地址，index-1
+	//	if rf.log[newEntryIndex-1].Term != entry.Term {
+	//		// delete the existing entry and all that follow it
+	//		rf.log = rf.log[:newEntryIndex-1]
+	//		rf.log = append(rf.log, args.Entries[i:]...)
+	//		DPrintf("[%d] appendEntries conflict",rf.me)
+	//		break
+	//	} else if rf.log[newEntryIndex-1].Term == entry.Term {
+	//		// aleady in the log
+	//		continue
+	//	}
+	//}
 
-		if newEntryIndex > rf.lastLogIndex() {
-			rf.log = append(rf.log, args.Entries...)
-			continue
-		}
-		// 这里是地址，index-1
-		if rf.log[newEntryIndex-1].Term != entry.Term {
-			// delete the existing entry and all that follow it
+	for i,entry := range args.Entries{
+		newEntryIndex := args.PrevLogIndex + i + 1
+		if newEntryIndex > rf.lastLogIndex(){
+			rf.log = append(rf.log,entry)
+			DPrintf("[%d] appendEntries {newEntryIndex > rf.lastLogIndex()} newEntry index: %d cmd: %v at term %d",
+				rf.me, newEntryIndex, entry.Command, rf.currentTerm)
+		}else if rf.log[newEntryIndex - 1].Term != entry.Term{
 			rf.log = rf.log[:newEntryIndex-1]
-			rf.log = append(rf.log, args.Entries[i:]...)
-		} else if rf.log[newEntryIndex-1].Term == entry.Term {
-			// aleady in the log
-			continue
-		} else {
-			// add this log entry
-			rf.log = append(rf.log, entry)
+			rf.log = append(rf.log,entry)
+			DPrintf("[%d] appendEntries {entry term doesnt match} newEntry index: %d cmd: %v at term %d",
+				rf.me, newEntryIndex, entry.Command, rf.currentTerm)
 		}
 	}
+
+
+	//s := ""
+	//for _,log := range rf.log{
+	//	s += fmt.Sprintf("%v ",log.Command)
+	//}
+	//DPrintf("[%d] <%s> appendEntries finished cmd {%s}",rf.me,rf.state,s)
 
 	//DPrintf("[%d] <%s> AppendEntries args.LeaderCommit %d rf.commitIndex %d rf.lastApplied %d", rf.me, rf.state, args.LeaderCommit, rf.commitIndex, rf.lastApplied)
 
@@ -834,6 +882,11 @@ func (rf *Raft) ApplyLogRoutine() {
 		//defer rf.mu.Unlock()
 		// If commitIndex > lastApplied: increment lastApplied, apply log[lastApplied] to state machine
 		for rf.commitIndex > rf.lastApplied {
+			//s := ""
+			//for _,log := range rf.log{
+			//	s += fmt.Sprintf("%v ",log.Command)
+			//}
+			//DPrintf("[%d] <%s> ApplyLogRoutine cmd {%s}",rf.me,rf.state,s)
 			rf.lastApplied++
 			applyMsg := ApplyMsg{
 				CommandValid: true,
@@ -841,8 +894,8 @@ func (rf *Raft) ApplyLogRoutine() {
 				CommandIndex: rf.lastApplied,
 			}
 			rf.applyCh <- applyMsg
-			DPrintf("[%d] <%s> ApplyLogRoutine applied %dst log commitIndex: %d lastApplied-> %d cmd: %v at term %d",
-				rf.me, rf.state, rf.lastApplied, rf.commitIndex, rf.lastApplied, rf.log[rf.lastApplied-1], rf.currentTerm)
+			DPrintf("[%d] <%s> ApplyLogRoutine len(log) %d applied %dst log commitIndex: %d lastApplied-> %d cmd: %v at term %d",
+				rf.me, rf.state, len(rf.log),rf.lastApplied, rf.commitIndex, rf.lastApplied, rf.log[rf.lastApplied-1].Command, rf.currentTerm)
 		}
 
 	}
